@@ -129,11 +129,21 @@ func TrimSuffix(s, suffix string) string {
 
 // rule 2 of "Constructing the CanonicalizedResource Element
 func hostToResource(host string) string {
+	// path style, I guess
+	if host == "s3.amazonaws.com" {
+		return ""
+	}
+
+	// virtual hosted-style request
+	// remove s3 aws if present
 	suffix := ".s3.amazonaws.com"
 	if strings.HasSuffix(host, suffix) {
-		return "/" + host[:len(host)-len(suffix)]
+		host = host[:len(host)-len(suffix)]
 	}
-	return ""
+	// return custom host thing? I don't see where this is documented
+	// for now matching example
+	// TODO: remove :port
+	return "/" + host
 }
 
 var sorted_included_sub_resources = []string{"acl", "lifecycle", "location", "logging",

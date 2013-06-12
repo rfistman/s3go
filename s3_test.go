@@ -102,7 +102,6 @@ func Test_List(t *testing.T) {
 		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/",
 		"Signature":    "htDYFYduRNen8P9ZfE/s9SuKy0U=",
 	}
-	log.Println(req.StringToSign())
 
 	DoTestRequest(t, req, m)
 }
