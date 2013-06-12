@@ -5,7 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
-	"log"
+	//"log"
 	"sort"
 	"strings"
 	"time"
@@ -90,12 +90,14 @@ func (req *S3Request) CanonicalizedAmzHeaders() string {
 	m := map[string]string{}
 	for k, v := range req.args {
 		//log.Println(strings.ToLower(k) + ":" + v)
-		m[strings.ToLower(k)] = v
+		lower_k := strings.ToLower(k)
+		if strings.HasPrefix(lower_k, "x-amz-") {
+			m[lower_k] = v
+		}
 	}
 
 	// 2. sort collection of headers lexographically by header name
 	sorted_keys := SortedKeys(m)
-	log.Println(sorted_keys)
 
 	// 3. combine same name header fields (already done with AddHeader)
 

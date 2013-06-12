@@ -108,7 +108,11 @@ func Test_Upload(t *testing.T) {
 	req.resource = "/db-backup.dat.gz"
 
 	// ???
-	req.args["Host"] = "static.johnsmith.net" //":8080"
+	//	req.args["Host"] = "static.johnsmith.net" //":8080"
+	// uhm, host seems to be unused. this must be that bucket name vs host header
+	// http request-URI
+	req.bucket = "static.johnsmith.net" //":8080"
+
 	req.args["x-amz-acl"] = "public-read"
 	// example request was actually "content-type", but I look for Content-Type. um
 	req.args["Content-Type"] = "application/x-download"
@@ -127,8 +131,6 @@ func Test_Upload(t *testing.T) {
 		"Signature":    "ilyl83RwaSoYIEdixDQcA4OnAnc=",
 	}
 
-	log.Println(req.StringToSign())
-	log.Println(m["StringToSign"])
 	DoTestRequest(t, req, m)
 }
 
