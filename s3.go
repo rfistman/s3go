@@ -16,7 +16,6 @@ type S3Request struct {
 	AWSSecretAccessKey string
 	httpVerb           string
 	args               map[string]string
-	bucket             string
 	resource           string
 }
 
@@ -50,16 +49,15 @@ func SortedKeys(m map[string]string) []string {
 }
 
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-func NewS3Request(httpVerb, bucket, resource string) *S3Request {
+func NewS3Request(httpVerb, resource string) *S3Request {
 	m := map[string]string{
-		"Host":         bucket + ".s3.amazonaws.com",
 		"Content-MD5":  "",
 		"Content-Type": "",
 		// this looks right
 		"Date": time.Now().Format(time.RFC1123Z),
 	}
 
-	req := S3Request{httpVerb: httpVerb, args: m, bucket: bucket, resource: resource}
+	req := S3Request{httpVerb: httpVerb, args: m, resource: resource}
 	return &req
 }
 
@@ -121,8 +119,24 @@ func (req *S3Request) AddHeader(key, value string) {
 	req.args[key] = value
 }
 
+func TrimSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		s = s[:len(s)-len(suffix)]
+	}
+	return s
+}
+
+// rule 2 of "Constructing the CanonicalizedResource Element
+func hostToResource(host string) string {
+	suffix := ".s3.amazonaws.com"
+	if strings.HasSuffix(host, suffix) {
+		return "/" + host[:len(host)-len(suffix)]
+	}
+	return ""
+}
+
 func (req *S3Request) CanonicalizedResource() string {
-	return "/" + req.bucket + req.resource
+	return hostToResource(req.args["Host"]) + req.resource
 }
 
 func (req *S3Request) StringToSign() string {

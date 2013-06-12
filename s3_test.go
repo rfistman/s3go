@@ -8,15 +8,31 @@ import (
 	"testing"
 )
 
+func Test_CanonicalResourceString(t *testing.T) {
+	// PARAPHRASED
+	// virtual hosted-style request
+	// "https://johnsmith.s3.amazonaws.com/photos/puppy.jpg" -> "/johnsmith".
+	if hostToResource("johnsmith.s3.amazonaws.com") != "/johnsmith" {
+		t.Error("virtual hosted-style request mismatch")
+	}
+
+	// path-style request
+	// "https://s3.amazonaws.com/johnsmith/photos/puppy.jpg" -> "".
+	if hostToResource("s3.amazonaws.com") != "" {
+		t.Error("path-style request mismatch")
+	}
+}
+
 func NewR(httpVerb, date string) *S3Request {
 	AWSAccessKeyId := "AKIAIOSFODNN7EXAMPLE"
 	AWSSecretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 	// get request
-	req := NewS3Request(httpVerb, "johnsmith", "/photos/puppy.jpg")
+	req := NewS3Request(httpVerb, "/photos/puppy.jpg")
 	req.AWSAccessKeyId = AWSAccessKeyId
 	req.AWSSecretAccessKey = AWSSecretAccessKey
 	req.args["Date"] = date
+	req.args["Host"] = "johnsmith.s3.amazonaws.com"
 
 	return req
 }
@@ -103,15 +119,14 @@ func Test_Delete(t *testing.T) {
 	DoTestRequest(t, req, m)
 }
 
+// NB: CNAME style virtual hosted bucket
 func Test_Upload(t *testing.T) {
 	req := NewR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000")
 	req.resource = "/db-backup.dat.gz"
 
 	// ???
-	//	req.args["Host"] = "static.johnsmith.net" //":8080"
-	// uhm, host seems to be unused. this must be that bucket name vs host header
-	// http request-URI
-	req.bucket = "static.johnsmith.net" //":8080"
+	// TODO: add port back
+	req.args["Host"] = "static.johnsmith.net" //":8080"
 
 	req.args["x-amz-acl"] = "public-read"
 	// example request was actually "content-type", but I look for Content-Type. um
@@ -136,8 +151,7 @@ func Test_Upload(t *testing.T) {
 
 func Test_ListAllBuckets(t *testing.T) {
 	req := NewR("GET", "Wed, 28 Mar 2007 01:29:59 +0000")
-	req.resource = "" // NB nothing?
-	req.bucket = ""   // no bucket. host in args is wrong...
+	req.resource = "/"
 
 	if req.args["Host"] != "s3.amazonaws.com" {
 		t.Error("Host is wrong for list all buckets")
