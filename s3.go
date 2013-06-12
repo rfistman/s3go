@@ -1,10 +1,13 @@
 package s3
 
 import (
-	//	"strconv"
+	// "strconv"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
+	"log"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -34,6 +37,18 @@ func SignWithKey(data, key string) string {
 	return b64_encode(hash)
 }
 
+// TODO: factorise (tweet)
+func SortedKeys(m map[string]string) []string {
+	sorted_keys := make([]string, len(m))
+	i := 0
+	for k, _ := range m {
+		sorted_keys[i] = k
+		i++
+	}
+	sort.Strings(sorted_keys)
+	return sorted_keys
+}
+
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
 func NewS3Request(httpVerb, bucket, resource string) *S3Request {
 	m := map[string]string{
@@ -59,8 +74,49 @@ func (req *S3Request) AuthorizationString() string {
 }
 
 func (req *S3Request) CanonicalizedAmzHeaders() string {
-	// unimplemented
-	return ""
+	/* oops - this is CanonicalizedResource
+	// 1. start with an empty string
+	s := ""
+
+	// 2. virtual hosting style buckets??? (unimplemented)
+	// nothing for path style requests
+
+	// 3. append the path of the undecoded http request-URI,
+	// up to but not including the query string
+	return s
+	*/
+
+	// 1. convert each http headername to lower case
+	m := map[string]string{}
+	for k, v := range req.args {
+		//log.Println(strings.ToLower(k) + ":" + v)
+		m[strings.ToLower(k)] = v
+	}
+
+	// 2. sort collection of headers lexographically by header name
+	sorted_keys := SortedKeys(m)
+	log.Println(sorted_keys)
+
+	// 3. combine same name header fields (already done with AddHeader)
+
+	// TODO: 4. unfold multiline headers
+	// 5. remove white space around colon (or don't add it)
+
+	s := ""
+	for _, k := range sorted_keys {
+		s += k + ":" + m[k] + "\n"
+	}
+
+	return s
+}
+
+// appends duplicate keys
+func (req *S3Request) AddHeader(key, value string) {
+	if prev_val, ok := req.args[key]; ok {
+		// append
+		value = prev_val + "," + value
+	}
+	req.args[key] = value
 }
 
 func (req *S3Request) CanonicalizedResource() string {

@@ -110,10 +110,12 @@ func Test_Upload(t *testing.T) {
 	// ???
 	req.args["Host"] = "static.johnsmith.net" //":8080"
 	req.args["x-amz-acl"] = "public-read"
-	req.args["content-type"] = "application/x-download"
+	// example request was actually "content-type", but I look for Content-Type. um
+	req.args["Content-Type"] = "application/x-download"
 	req.args["Content-MD5"] = "4gJE4saaMU4BqNR0kLY+lw=="
-	req.args["X-Amz-Meta-ReviewedBy"] = "joe@johnsmith.net"
-	req.args["X-Amz-Meta-ReviewedBy"] = "jane@johnsmith.net"
+	// allow duplicate keys, order is important
+	req.AddHeader("X-Amz-Meta-ReviewedBy", "joe@johnsmith.net")
+	req.AddHeader("X-Amz-Meta-ReviewedBy", "jane@johnsmith.net")
 	req.args["X-Amz-Meta-FileChecksum"] = "0x02661779"
 	req.args["X-Amz-Meta-ChecksumAlgorithm"] = "crc32"
 	req.args["Content-Disposition"] = "attachment; filename=database.dat"
@@ -121,7 +123,7 @@ func Test_Upload(t *testing.T) {
 	req.args["Content-Length"] = "5913339"
 
 	m := map[string]string{
-		"StringToSign": "PUT\n4gJE4saaMU4BqNR0kLY+lw==\napplication/x-download\nTue, 27 Mar 2007 21:06:08 +0000\nx-amz-acl:public-read\nx-amz-meta-checksumalgorithm:crc32\nx-amz-meta-filechecksum:0x02661779\nx-amz-meta-reviewedby: joe@johnsmith.net,jane@johnsmith.net\n/static.johnsmith.net/db-backup.dat.gz",
+		"StringToSign": "PUT\n4gJE4saaMU4BqNR0kLY+lw==\napplication/x-download\nTue, 27 Mar 2007 21:06:08 +0000\nx-amz-acl:public-read\nx-amz-meta-checksumalgorithm:crc32\nx-amz-meta-filechecksum:0x02661779\nx-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n/static.johnsmith.net/db-backup.dat.gz",
 		"Signature":    "ilyl83RwaSoYIEdixDQcA4OnAnc=",
 	}
 
