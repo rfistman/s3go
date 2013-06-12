@@ -176,8 +176,14 @@ func getIncludedQuery(query string) string {
 
 func (req *S3Request) CanonicalizedResource() string {
 	cmps := strings.Split(req.resource, "?")
-	s := hostToResource(req.args["Host"]) + cmps[0]
+	// 1. empty string
+	// 2. virtual hosted bucket vs path style
+	s := hostToResource(req.args["Host"]) +
+		// 3. path part up to but not including query string
+		cmps[0]
 
+	// 4. included sub-resources
+	// TODO: response header overrides
 	if len(cmps) > 1 {
 		query := cmps[1]
 		included_query := getIncludedQuery(query)
