@@ -30,33 +30,49 @@ func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
 		t.Error("signature mismatch")
 	}
 
-	if e["AuthorizationString"] != req.AuthorizationString() {
+	AuthorizationString := "AWS AKIAIOSFODNN7EXAMPLE:" + e["Signature"]
+
+	if AuthorizationString != req.AuthorizationString() {
 		t.Error("authorization string mismatch")
 	}
 }
 
 // do I really have to do camelcase?
-func Test_foo(t *testing.T) {
+func Test_ObjectGET(t *testing.T) {
 	// Example Object GET
 	req := NewR("GET", "Tue, 27 Mar 2007 19:36:42 +0000")
 
 	m := map[string]string{
-		"StringToSign":        "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg",
-		"Signature":           "bWq2s1WEIj+Ydj0vQ697zp+IXMU=",
-		"AuthorizationString": `AWS AKIAIOSFODNN7EXAMPLE:bWq2s1WEIj+Ydj0vQ697zp+IXMU=`,
+		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg",
+		"Signature":    "bWq2s1WEIj+Ydj0vQ697zp+IXMU=",
 	}
 
 	DoTestRequest(t, req, m)
 
+}
+
+func Test_ObjectPUT(t *testing.T) {
 	// Example Object PUT
 	// NB Content-MD5 omitted
-	req = NewR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000")
+	req := NewR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000")
 	req.args["Content-Type"] = "image/jpeg"
 
-	m = map[string]string{
-		"StringToSign":        "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg",
-		"Signature":           "MyyxeRY7whkBe+bq8fHCL/2kKUg="
-		"AuthorizationString": "AWS AKIAIOSFODNN7EXAMPLE:MyyxeRY7whkBe+bq8fHCL/2kKUg=",
+	m := map[string]string{
+		"StringToSign": "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg",
+		"Signature":    "MyyxeRY7whkBe+bq8fHCL/2kKUg=",
+	}
+
+	DoTestRequest(t, req, m)
+}
+
+func Test_List(t *testing.T) {
+	req := NewR("GET", "Tue, 27 Mar 2007 19:42:41 +0000")
+	req.resource = "/?prefix=photos&max-keys=50&marker=puppy"
+
+	// Example list
+	m := map[string]string{
+		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/",
+		"Signature":    "htDYFYduRNen8P9ZfE/s9SuKy0U=",
 	}
 
 	DoTestRequest(t, req, m)
