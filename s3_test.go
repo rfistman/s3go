@@ -23,6 +23,17 @@ func Test_CanonicalResourceString(t *testing.T) {
 	}
 }
 
+func Test_IncludedQuery(t *testing.T) {
+	if getIncludedQuery("acl") != "acl" {
+		t.Error("included query acl mismatch")
+	}
+
+	// I made this one up. check sorting
+	if getIncludedQuery("versionId=value&acl") != "acl&versionId=value" {
+		t.Error("included query sort mismatch")
+	}
+}
+
 func NewR(httpVerb, date string) *S3Request {
 	AWSAccessKeyId := "AKIAIOSFODNN7EXAMPLE"
 	AWSSecretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -39,6 +50,7 @@ func NewR(httpVerb, date string) *S3Request {
 
 func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
 	if e["StringToSign"] != req.StringToSign() {
+		log.Println("BAD: " + req.StringToSign())
 		t.Error(req.httpVerb + "StringToSign mismatch")
 	}
 

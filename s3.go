@@ -1,12 +1,13 @@
 package s3
 
 import (
-	// "strconv"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
-	//"log"
+	"log"
+	"net/url"
 	"sort"
+	// "strconv"
 	"strings"
 	"time"
 )
@@ -135,8 +136,56 @@ func hostToResource(host string) string {
 	return ""
 }
 
+var sorted_included_sub_resources = []string{"acl", "lifecycle", "location", "logging",
+	"notification", "partNumber", "policy", "requestPayment", "torrent", "uploadId",
+	"uploads", "versionId", "versioning", "versions", "website"}
+
+func getIncludedQuery(query string) string {
+	// TODO: handle error. pass it back?
+	m, err := url.ParseQuery(query)
+	if err != nil {
+		log.Println("ParseQuery: ", err)
+		return ""
+	}
+
+	// included_values := url.Values{}
+
+	s := ""
+	for _, k := range sorted_included_sub_resources {
+		if v_arr, ok := m[k]; ok {
+			if len(s) > 0 {
+				s += "&"
+			}
+			s += k
+			for i, v := range v_arr {
+				// included_values.Add(k, v)
+				if i != 0 {
+					s += k
+				}
+				// ParseQuery gives me one zero length string for ?acl
+				if len(v) > 0 {
+					s += "=" + v
+				}
+			}
+		}
+	}
+	// encodes no value as "k="
+	//return included_values.Encode()
+	return s
+}
+
 func (req *S3Request) CanonicalizedResource() string {
-	return hostToResource(req.args["Host"]) + req.resource
+	cmps := strings.Split(req.resource, "?")
+	s := hostToResource(req.args["Host"]) + cmps[0]
+
+	if len(cmps) > 1 {
+		query := cmps[1]
+		included_query := getIncludedQuery(query)
+		if len(included_query) > 0 {
+			s += "?" + included_query
+		}
+	}
+	return s
 }
 
 func (req *S3Request) StringToSign() string {
