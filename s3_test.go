@@ -129,3 +129,20 @@ func Test_Upload(t *testing.T) {
 	log.Println(m["StringToSign"])
 	DoTestRequest(t, req, m)
 }
+
+func Test_ListAllBuckets(t *testing.T) {
+	req := NewR("GET", "Wed, 28 Mar 2007 01:29:59 +0000")
+	req.resource = "" // NB nothing?
+	req.bucket = ""   // no bucket. host in args is wrong...
+
+	if req.args["Host"] != "s3.amazonaws.com" {
+		t.Error("Host is wrong for list all buckets")
+	}
+
+	m := map[string]string{
+		"StringToSign": "GET\n\n\nWed, 28 Mar 2007 01:29:59 +0000\n/",
+		"Signature":    "qGdzdERIC03wnaRNKh6OqZehG9s=",
+	}
+
+	DoTestRequest(t, req, m)
+}
