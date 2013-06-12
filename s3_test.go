@@ -134,10 +134,7 @@ func Test_Delete(t *testing.T) {
 func Test_Upload(t *testing.T) {
 	req := NewR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000")
 	req.resource = "/db-backup.dat.gz"
-
-	// ???
-	// TODO: add port back
-	req.args["Host"] = "static.johnsmith.net" //":8080"
+	req.args["Host"] = "static.johnsmith.net:8080"
 
 	req.args["x-amz-acl"] = "public-read"
 	// example request was actually "content-type", but I look for Content-Type. um

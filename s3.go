@@ -120,13 +120,6 @@ func (req *S3Request) AddHeader(key, value string) {
 	req.args[key] = value
 }
 
-func TrimSuffix(s, suffix string) string {
-	if strings.HasSuffix(s, suffix) {
-		s = s[:len(s)-len(suffix)]
-	}
-	return s
-}
-
 // rule 2 of "Constructing the CanonicalizedResource Element
 func hostToResource(host string) string {
 	// path style, I guess
@@ -139,10 +132,12 @@ func hostToResource(host string) string {
 	suffix := ".s3.amazonaws.com"
 	if strings.HasSuffix(host, suffix) {
 		host = host[:len(host)-len(suffix)]
+	} else {
+		// remove :port
+		host = strings.Split(host, ":")[0]
 	}
 	// return custom host thing? I don't see where this is documented
 	// for now matching example
-	// TODO: remove :port
 	return "/" + host
 }
 
