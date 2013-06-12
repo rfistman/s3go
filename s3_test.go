@@ -4,7 +4,7 @@ package s3
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
 
 import (
-	//	"log"
+	"log"
 	"testing"
 )
 
@@ -73,6 +73,31 @@ func Test_List(t *testing.T) {
 	m := map[string]string{
 		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:42:41 +0000\n/johnsmith/",
 		"Signature":    "htDYFYduRNen8P9ZfE/s9SuKy0U=",
+	}
+	log.Println(req.StringToSign())
+
+	DoTestRequest(t, req, m)
+}
+
+func Test_Fetch(t *testing.T) {
+	req := NewR("GET", "Tue, 27 Mar 2007 19:44:46 +0000")
+	req.resource = "/?acl"
+
+	m := map[string]string{
+		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:44:46 +0000\n/johnsmith/?acl",
+		"Signature":    "c2WLPFtWHVgbEmeEG93a4cG37dM=",
+	}
+
+	DoTestRequest(t, req, m)
+}
+
+func Test_Delete(t *testing.T) {
+	// NB example date is wrong in this example. should be 26s not 27s
+	req := NewR("DELETE", "Tue, 27 Mar 2007 21:20:26 +0000")
+
+	m := map[string]string{
+		"StringToSign": "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg",
+		"Signature":    "lx3byBScXR6KzyMaifNkardMwNk=",
 	}
 
 	DoTestRequest(t, req, m)
