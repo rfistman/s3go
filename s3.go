@@ -204,3 +204,14 @@ func (req *S3Request) StringToSign() string {
 		req.args["Date"] + "\n" +
 		req.CanonicalizedAmzHeaders() + req.CanonicalizedResource()
 }
+
+func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
+	s3.AWSAccessKeyId = cred.AWSAccessKeyId
+	s3.AWSSecretAccessKey = cred.AWSSecretAccessKey
+	if len(cred.token) > 0 {
+		s3.args["x-amz-security-token"] = cred.token
+	} else {
+		log.Println("TODO: remove token here")
+	}
+	s3.args["Host"] = "s3.amazonaws.com"
+}
