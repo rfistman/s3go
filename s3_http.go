@@ -9,7 +9,7 @@ func S3ToHttpRequest(s3 *S3Request, body io.Reader) (*http.Request, error) {
 	// could add it to map, but that would change this
 	auth := s3.AuthorizationString()
 
-	req, err := http.NewRequest(s3.httpVerb, "http://"+s3.args["Host"]+s3.resource, nil)
+	req, err := http.NewRequest(s3.httpVerb, "http://"+s3.args["Host"]+s3.resource, body)
 	if err != nil {
 		return nil, err
 	}
