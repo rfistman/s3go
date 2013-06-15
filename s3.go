@@ -215,3 +215,8 @@ func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
 	}
 	s3.args["Host"] = "s3.amazonaws.com"
 }
+
+// need this in (external) put code atm
+func (s3 *S3Request) GetArgs() *map[string]string {
+		return &s3.args
+}

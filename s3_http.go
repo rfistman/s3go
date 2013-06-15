@@ -2,9 +2,10 @@ package s3
 
 import (
 	"net/http"
+	"io"
 )
 
-func S3ToHttpRequest(s3 *S3Request) (*http.Request, error) {
+func S3ToHttpRequest(s3 *S3Request, body io.Reader) (*http.Request, error) {
 	// could add it to map, but that would change this
 	auth := s3.AuthorizationString()
 

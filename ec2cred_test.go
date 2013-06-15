@@ -19,7 +19,7 @@ func Test_Sumpin(t *testing.T) {
 	s3 := NewS3Request("GET", "/")
 	s3.AddCredentials(cred)
 
-	req, err := S3ToHttpRequest(s3)
+	req, err := S3ToHttpRequest(s3, nil)
 
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
