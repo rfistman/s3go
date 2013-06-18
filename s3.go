@@ -21,7 +21,7 @@ type S3Request struct {
 }
 
 // TODO: factorise (tweet)
-func b64_encode(b []byte) string {
+func B64_encode(b []byte) string {
 	res := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
 	base64.StdEncoding.Encode(res, b)
 	return string(res)
@@ -34,7 +34,7 @@ func SignWithKey(data, key string) string {
 	mac.Write([]byte(data))
 	hash := mac.Sum(nil)
 
-	return b64_encode(hash)
+	return B64_encode(hash)
 }
 
 // TODO: factorise (tweet)
