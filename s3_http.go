@@ -1,8 +1,8 @@
 package s3
 
 import (
-	"net/http"
 	"io"
+	"net/http"
 )
 
 func S3ToHttpRequest(s3 *S3Request, body io.Reader) (*http.Request, error) {
@@ -19,4 +19,19 @@ func S3ToHttpRequest(s3 *S3Request, body io.Reader) (*http.Request, error) {
 	}
 	req.Header.Add("Authorization", auth)
 	return req, nil
+}
+
+func (r *SDBRequest) HttpRequest() (*http.Request, error) {
+	url := "http://" + r.host
+	query := r.canonicalizedQueryString() + "&Signature=" + r.signature()
+	if len(query) > 0 {
+		url += "?" + query
+	}
+
+	req, err := http.NewRequest(r.httpVerb, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, err
 }
