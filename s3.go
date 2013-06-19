@@ -52,6 +52,7 @@ func SortedKeys(m map[string]string) []string {
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
 func NewS3Request(httpVerb, resource string) *S3Request {
 	m := map[string]string{
+		// TODO: move to test code
 		"Content-MD5":  "",
 		"Content-Type": "",
 		// this looks right
@@ -218,5 +219,5 @@ func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
 
 // need this in (external) put code atm
 func (s3 *S3Request) GetArgs() *map[string]string {
-		return &s3.args
+	return &s3.args
 }
