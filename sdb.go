@@ -4,6 +4,7 @@ import (
 	// "log"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type AWSRequest interface {
@@ -32,8 +33,23 @@ func percent_encode(s string) string {
 // => sdb.amazonaws.com URI ? query map
 // TODO: handle non URI to /
 func NewSDBRequest(httpVerb string, query Strmap) *SDBRequest {
-	//s := NewS3Request(httpVerb, uri)
-	r := &SDBRequest{httpVerb: httpVerb, query: query, host: "sdb.amazonaws.com"}
+	// wrong timestamp? should be other format
+	// http://docs.aws.amazon.com/AmazonSimpleDB/latest/DeveloperGuide/HMACAuth.html#AboutTimestamp
+	m := Strmap{
+		// e.g 2010-01-31T23:59:59Z GMT/CUT recommended but not required.
+		"Timestamp":        time.Now().Format(time.RFC3339),
+		"Version":          "2009-04-15",
+		"SignatureVersion": "2",
+		// pretty sure I'm using HmacSHA1
+		"SignatureMethod": "HmacSHA1",
+	}
+
+	// let caller overwrite defaults
+	for k, v := range query {
+		m[k] = v
+	}
+
+	r := &SDBRequest{httpVerb: httpVerb, query: m, host: "sdb.amazonaws.com"}
 
 	return r
 }
