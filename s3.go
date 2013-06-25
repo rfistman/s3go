@@ -214,7 +214,6 @@ func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
 	} else {
 		log.Println("TODO: remove token here")
 	}
-	s3.args["Host"] = "s3.amazonaws.com"
 }
 
 // need this in (external) put code atm
