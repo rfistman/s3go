@@ -212,7 +212,7 @@ func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
 	if len(cred.token) > 0 {
 		s3.args["x-amz-security-token"] = cred.token
 	} else {
-		log.Println("TODO: remove token here")
+		// log.Println("TODO: remove token here")
 	}
 }
 
