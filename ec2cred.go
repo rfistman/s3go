@@ -7,16 +7,31 @@ import (
 	"net/http"
 )
 
+var credsUrl = "http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+
 type SecurityCredentials struct {
 	AWSAccessKeyId     string
 	AWSSecretAccessKey string
 	token              string
 }
 
+func GetEC2Role() (string, error) {
+	res, err := http.Get(credsUrl)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	contents, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+	// looks like there's only ever one role
+	return string(contents), nil
+	//return strings.Split(string(contents), "\n"), nil
+}
+
 func GetEC2Credentials(role string) (*SecurityCredentials, error) {
-	url := "http://169.254.169.254/latest/meta-data/iam/security-credentials/" + role
-	//url := "http://localhost:1234/latest/meta-data/iam/security-credentials/" + role
-	//req, err := http.NewRequest("GET", url, nil)
+	url := credsUrl + role
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, err
