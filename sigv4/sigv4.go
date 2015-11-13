@@ -7,14 +7,20 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"../../util"
 )
+
+// TODO: use a struct instead of returning 5 item tuples
+// TODO: presigned urls
 
 const sigAlgorithm string = "AWS4-HMAC-SHA256"
 
@@ -97,7 +103,7 @@ func canonicalQueryString(rawQuery string) (string, error) {
 	}
 	// This percent encodes and sorts by key! which appears to cover steps a-e!
 	// http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-	return m.Encode(), nil
+	return html.EscapeString(m.Encode()), nil
 }
 
 // returns the canonical headers and signed headers (sorted, lowercased)
@@ -144,6 +150,7 @@ func stringToSign(req *http.Request, dateISO8601, region, service string) (s str
 	if err != nil {
 		return
 	}
+	log.Printf("CR: '%v'", cr)
 	s += hexSha256([]byte(cr)) // 4. hash of canonical request. WITHOUT newline
 	return
 }
@@ -152,7 +159,8 @@ func stringToSign(req *http.Request, dateISO8601, region, service string) (s str
 func signature(req *http.Request, secretAccessKey, dateISO8601, region, service string) (sig string, credentialScope string, signedHeaders string, err error) {
 	var sts string
 	var shortDate string
-	sts, credentialScope, shortDate, signedHeaders, err = stringToSign(samplePostRequest(), dateISO8601, region, service)
+	sts, credentialScope, shortDate, signedHeaders, err = stringToSign(req, dateISO8601, region, service)
+	log.Printf("STS: %v", sts)
 	sk := signingKey(secretAccessKey, shortDate, region, service)
 	sig = hex.EncodeToString(hmacSha256(sts, sk))
 	return
@@ -166,4 +174,18 @@ func authorizationString(req *http.Request, accessKeyId, secretAccessKey, dateIS
 	credential := fmt.Sprintf("%v/%v", accessKeyId, credentialScope)
 	auth = fmt.Sprintf("%v Credential=%v, SignedHeaders=%v, Signature=%v", sigAlgorithm, credential, signedHeaders, sig)
 	return
+}
+
+func AuthorizeRequest(req *http.Request, accessKeyId, secretAccessKey, region, service string) error {
+	dateISO8601 := time.Now().UTC().Format("20060102T150405Z0700") // this seems to be right
+	req.Header.Set("x-amz-date", dateISO8601)                      // BEFORE authorization
+
+	auth, err := authorizationString(req, accessKeyId, secretAccessKey, dateISO8601, region, service)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", auth)
+
+	return nil
 }
