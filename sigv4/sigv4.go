@@ -16,6 +16,8 @@ import (
 	"../../util"
 )
 
+const sigAlgorithm string = "AWS4-HMAC-SHA256"
+
 func hmacSha256(data string, key []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(data)) // hash.Hash writer never returns an error
@@ -42,7 +44,7 @@ func signingKey(key, dateStamp, regionName, serviceName string) []byte {
 }
 
 // http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-func canonicalRequest(req *http.Request) (s string, err error) {
+func canonicalRequest(req *http.Request) (s string, signedHeaders string, err error) {
 	// 1. request method
 	s = req.Method + "\n"
 
@@ -61,11 +63,12 @@ func canonicalRequest(req *http.Request) (s string, err error) {
 	s += cq + "\n"
 
 	// 4. canonical headers
-	ch, signedHeaders := canonicalHeaders(req)
+	ch, signedHeaderArray := canonicalHeaders(req)
 	s += ch + "\n"
 
 	// 5. add signed headers. seems like canonicalHeaders would know about this
-	s += strings.Join(signedHeaders, ";") + "\n"
+	signedHeaders = strings.Join(signedHeaderArray, ";")
+	s += signedHeaders + "\n"
 
 	// BUG: don't read it all in
 	var body []byte // empty
@@ -122,25 +125,45 @@ func canonicalHeaders(req *http.Request) (ch string, signedHeaders []string) {
 }
 
 // http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
-func stringToSign(req *http.Request, dateISO8601, region, service string) (s string, err error) {
-	s = "AWS4-HMAC-SHA256\n" // 1. the algorithm. all sha256 for now
-	s += dateISO8601 + "\n"  // 2. date
+func stringToSign(req *http.Request, dateISO8601, region, service string) (s string, credentialScope string, shortDate string, signedHeaders string, err error) {
+	s = sigAlgorithm + "\n" // 1. the algorithm. all sha256 for now
+	s += dateISO8601 + "\n" // 2. date
 
-	var YYYYMMDD string
 	// pull YYYYMMDD out of date. hacky?
 	if len(dateISO8601) >= 8 {
-		YYYYMMDD = dateISO8601[:8]
+		shortDate = dateISO8601[:8]
 	} else {
 		err = errors.New("invalid ISO8601 date")
 		return
 	}
-	s += fmt.Sprintf("%v/%v/%v/aws4_request", YYYYMMDD, region, service) + "\n" // 3. credential scope
+	credentialScope = fmt.Sprintf("%v/%v/%v/aws4_request", shortDate, region, service)
+	s += credentialScope + "\n" // 3. credential scope
 
 	var cr string
-	cr, err = canonicalRequest(req)
+	cr, signedHeaders, err = canonicalRequest(req)
 	if err != nil {
 		return
 	}
 	s += hexSha256([]byte(cr)) // 4. hash of canonical request. WITHOUT newline
+	return
+}
+
+// http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
+func signature(req *http.Request, secretAccessKey, dateISO8601, region, service string) (sig string, credentialScope string, signedHeaders string, err error) {
+	var sts string
+	var shortDate string
+	sts, credentialScope, shortDate, signedHeaders, err = stringToSign(samplePostRequest(), dateISO8601, region, service)
+	sk := signingKey(secretAccessKey, shortDate, region, service)
+	sig = hex.EncodeToString(hmacSha256(sts, sk))
+	return
+}
+
+func authorizationString(req *http.Request, accessKeyId, secretAccessKey, dateISO8601, region, service string) (auth string, err error) {
+	sig, credentialScope, signedHeaders, err := signature(req, secretAccessKey, dateISO8601, region, service)
+	if err != nil {
+		return
+	}
+	credential := fmt.Sprintf("%v/%v", accessKeyId, credentialScope)
+	auth = fmt.Sprintf("%v Credential=%v, SignedHeaders=%v, Signature=%v", sigAlgorithm, credential, signedHeaders, sig)
 	return
 }

@@ -2,7 +2,6 @@ package sigv4
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"testing"
@@ -37,7 +36,7 @@ func ExampleCanonicalGetRequest() {
 	r.Header.Add("Host", "johnsmith.s3.amazonaws.com")
 	r.Header.Add("X-AMZ-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	r.Header.Add("X-amz-Date", "20151110T033429Z")
-	cr, _ := canonicalRequest(r)
+	cr, _, _ := canonicalRequest(r)
 	fmt.Printf("%v\n", cr)
 
 	// Output: GET
@@ -62,7 +61,7 @@ func samplePostRequest() *http.Request {
 
 // From http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
 func ExampleCanonicalPostRequest() {
-	cr, _ := canonicalRequest(samplePostRequest())
+	cr, _, _ := canonicalRequest(samplePostRequest())
 	fmt.Printf("%v\n", cr)
 
 	// throw step 8 in as well
@@ -82,7 +81,7 @@ func ExampleCanonicalPostRequest() {
 
 // http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
 func ExampleSampleStringToSign() {
-	s, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
+	s, _, _, _, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
 	fmt.Printf("%v", s)
 
 	// Output: AWS4-HMAC-SHA256
@@ -91,15 +90,24 @@ func ExampleSampleStringToSign() {
 	// 3511de7e95d28ecd39e9513b642aee07e54f4941150d8df8bf94b328ef7e55e2
 }
 
+const sampleSecretAccessKey string = "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+
 func ExampleSigningKey() {
-	kSecret := "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
-	sk := signingKey(kSecret, "20110909", "us-east-1", "iam")
+	sk := signingKey(sampleSecretAccessKey, "20110909", "us-east-1", "iam")
 	fmt.Printf("signing key: %v\n", sk)
 
-	s, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
-	signature := hex.EncodeToString(hmacSha256(s, sk))
-	fmt.Printf("signature: %v\n", signature)
+	sig, _, _, _ := signature(samplePostRequest(), sampleSecretAccessKey, "20110909T233600Z", "us-east-1", "iam")
+	fmt.Printf("signature: %v\n", sig)
 
 	// Output: signing key: [152 241 216 137 254 196 244 66 26 220 82 43 171 12 225 248 46 105 41 194 98 237 21 229 169 76 144 239 209 227 176 231]
 	// signature: ced6826de92d2bdeed8f846f0bf508e8559e98e4b0199114b84c54174deb456c
+}
+
+// http://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
+func ExampleAuthorizationHeader() {
+	auth, _ := authorizationString(samplePostRequest(), "AKIDEXAMPLE", sampleSecretAccessKey, "20110909T233600Z", "us-east-1", "iam")
+	fmt.Printf("Authorization: %v", auth)
+
+	// Output: Authorization: AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20110909/us-east-1/iam/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=ced6826de92d2bdeed8f846f0bf508e8559e98e4b0199114b84c54174deb456c
+
 }
