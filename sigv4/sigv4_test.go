@@ -37,7 +37,7 @@ func ExampleCanonicalGetRequest() {
 	r.Header.Add("X-AMZ-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	r.Header.Add("X-amz-Date", "20151110T033429Z")
 	cr, _ := canonicalRequest(r)
-	fmt.Printf("%v", cr)
+	fmt.Printf("%v\n", cr)
 
 	// Output: GET
 	// /ExampleObject.txt
@@ -50,15 +50,22 @@ func ExampleCanonicalGetRequest() {
 	// e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 }
 
-// From http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
-func ExampleCanonicalPostRequest() {
-	r, _ := http.NewRequest("POST", "http://iam.amazonaws.com", bytes.NewBufferString("Action=ListUsers&Version=2010-05-08"))
+func samplePostRequest() *http.Request {
+	r, _ := http.NewRequest("POST", "https://iam.amazonaws.com", bytes.NewBufferString("Action=ListUsers&Version=2010-05-08"))
 	r.Header.Add("Host", "iam.amazonaws.com")
 	r.Header.Add("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 	r.Header.Add("X-AMZ-Date", "20110909T233600Z")
 
-	cr, _ := canonicalRequest(r)
-	fmt.Printf("%v", cr)
+	return r
+}
+
+// From http://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
+func ExampleCanonicalPostRequest() {
+	cr, _ := canonicalRequest(samplePostRequest())
+	fmt.Printf("%v\n", cr)
+
+	// throw step 8 in as well
+	fmt.Printf("Hashed canonical request: %v\n", hexSha256([]byte(cr)))
 
 	// Output: POST
 	// /
@@ -69,4 +76,15 @@ func ExampleCanonicalPostRequest() {
 	//
 	// content-type;host;x-amz-date
 	// b6359072c78d70ebee1e81adcbab4f01bf2c23245fa365ef83fe8f1f955085e2
+	// Hashed canonical request: 3511de7e95d28ecd39e9513b642aee07e54f4941150d8df8bf94b328ef7e55e2
+}
+
+func ExampleSampleStringToSign() {
+	s, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
+	fmt.Printf("%v", s)
+
+	// Output: AWS4-HMAC-SHA256
+	// 20110909T233600Z
+	// 20110909/us-east-1/iam/aws4_request
+	// 3511de7e95d28ecd39e9513b642aee07e54f4941150d8df8bf94b328ef7e55e2
 }

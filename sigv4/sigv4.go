@@ -5,6 +5,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -20,6 +22,7 @@ func hmacSha256(data string, key []byte) []byte {
 	return mac.Sum(nil)
 }
 
+// supposed to be lower case. if hex stops doing this add ToLower
 func hexSha256(data []byte) string {
 	s := sha256.New()
 	s.Write(data)
@@ -78,7 +81,7 @@ func canonicalRequest(req *http.Request) (s string, err error) {
 	}
 
 	// 6. hashed payload. I'm doing empty for now
-	s += hexSha256(body) + "\n"
+	s += hexSha256(body) // NB: no trailing newline!
 	return
 }
 
@@ -114,5 +117,29 @@ func canonicalHeaders(req *http.Request) (ch string, signedHeaders []string) {
 		ch += k + ":" + m[k] + "\n"
 
 	}
+	return
+}
+
+// http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
+func stringToSign(req *http.Request, dateISO8601, region, service string) (s string, err error) {
+	s = "AWS4-HMAC-SHA256\n" // 1. the algorithm. all sha256 for now
+	s += dateISO8601 + "\n"  // 2. date
+
+	var YYYYMMDD string
+	// pull YYYYMMDD out of date. hacky?
+	if len(dateISO8601) >= 8 {
+		YYYYMMDD = dateISO8601[:8]
+	} else {
+		err = errors.New("invalid ISO8601 date")
+		return
+	}
+	s += fmt.Sprintf("%v/%v/%v/aws4_request", YYYYMMDD, region, service) + "\n" // 3. credential scope
+
+	var cr string
+	cr, err = canonicalRequest(req)
+	if err != nil {
+		return
+	}
+	s += hexSha256([]byte(cr)) // 4. hash of canonical request. WITHOUT newline
 	return
 }
