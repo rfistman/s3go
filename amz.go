@@ -12,30 +12,26 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-
-	"../s3"
 )
-
-// TODO: move into s3
 
 var useEnvCreds = flag.Bool("envCred", false, "use AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY environment variables")
 
 // TODO: reconcile with getCred in awsbn/sdb_play.go
-func GetCred() (*s3.SecurityCredentials, error) {
+func GetCred() (*SecurityCredentials, error) {
 	if *useEnvCreds {
-		creds := &s3.SecurityCredentials{AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"), AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY")}
+		creds := &SecurityCredentials{AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"), AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY")}
 		return creds, nil
 	}
 
-	role, err := s3.GetEC2Role()
+	role, err := GetEC2Role()
 	if err != nil {
 		return nil, err
 	}
-	return s3.GetEC2Credentials(role)
+	return GetEC2Credentials(role)
 }
 
-func S3Req(httpVerb, resourceName, bucket string) (*s3.S3Request, error) {
-	r := s3.NewS3Request(httpVerb, resourceName)
+func S3Req(httpVerb, resourceName, bucket string) (*S3Request, error) {
+	r := NewS3Request(httpVerb, resourceName)
 	cred, err := GetCred()
 	if err != nil {
 		return nil, err
@@ -80,10 +76,10 @@ func B64MD5(b io.Reader) (string, int64) {
 		log.Fatal(err)
 	}
 	hash := h.Sum(nil)
-	return s3.B64_encode(hash), written
+	return B64_encode(hash), written
 }
 
-func S3UrlS3GetReq(s3SchemeUrl string) (*S3Req, error) {
+func S3UrlS3GetReq(s3SchemeUrl string) (*S3Request, error) {
 	u, err := url.Parse(s3SchemeUrl)
 	if err != nil {
 		return nil, err
@@ -105,7 +101,7 @@ func S3UrlGetRequest(s3SchemeUrl string) (*http.Request, error) {
 		return nil, err
 	}
 
-	return s3.S3ToHttpRequest(s3r, nil)
+	return S3ToHttpRequest(s3r, nil)
 }
 
 func UnmarshalFromS3(s3url string, out interface{}) error {
