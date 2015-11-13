@@ -29,6 +29,7 @@ func hexSha256(data []byte) string {
 	return hex.EncodeToString(s.Sum(nil))
 }
 
+// http://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html
 // http://docs.aws.amazon.com/general/latest/gr/signature-v4-examples.html
 func signingKey(key, dateStamp, regionName, serviceName string) []byte {
 	kSecret := []byte("AWS4" + key)

@@ -2,6 +2,7 @@ package sigv4
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"testing"
@@ -79,6 +80,7 @@ func ExampleCanonicalPostRequest() {
 	// Hashed canonical request: 3511de7e95d28ecd39e9513b642aee07e54f4941150d8df8bf94b328ef7e55e2
 }
 
+// http://docs.aws.amazon.com/general/latest/gr/sigv4-create-string-to-sign.html
 func ExampleSampleStringToSign() {
 	s, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
 	fmt.Printf("%v", s)
@@ -87,4 +89,17 @@ func ExampleSampleStringToSign() {
 	// 20110909T233600Z
 	// 20110909/us-east-1/iam/aws4_request
 	// 3511de7e95d28ecd39e9513b642aee07e54f4941150d8df8bf94b328ef7e55e2
+}
+
+func ExampleSigningKey() {
+	kSecret := "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+	sk := signingKey(kSecret, "20110909", "us-east-1", "iam")
+	fmt.Printf("signing key: %v\n", sk)
+
+	s, _ := stringToSign(samplePostRequest(), "20110909T233600Z", "us-east-1", "iam")
+	signature := hex.EncodeToString(hmacSha256(s, sk))
+	fmt.Printf("signature: %v\n", signature)
+
+	// Output: signing key: [152 241 216 137 254 196 244 66 26 220 82 43 171 12 225 248 46 105 41 194 98 237 21 229 169 76 144 239 209 227 176 231]
+	// signature: ced6826de92d2bdeed8f846f0bf508e8559e98e4b0199114b84c54174deb456c
 }
