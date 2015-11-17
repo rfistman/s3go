@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -150,7 +149,7 @@ func stringToSign(req *http.Request, dateISO8601, region, service string) (s str
 	if err != nil {
 		return
 	}
-	log.Printf("CR: '%v'", cr)
+	// log.Printf("CR: '%v'", cr)
 	s += hexSha256([]byte(cr)) // 4. hash of canonical request. WITHOUT newline
 	return
 }
@@ -160,7 +159,7 @@ func signature(req *http.Request, secretAccessKey, dateISO8601, region, service 
 	var sts string
 	var shortDate string
 	sts, credentialScope, shortDate, signedHeaders, err = stringToSign(req, dateISO8601, region, service)
-	log.Printf("STS: %v", sts)
+	// log.Printf("STS: %v", sts)
 	sk := signingKey(secretAccessKey, shortDate, region, service)
 	sig = hex.EncodeToString(hmacSha256(sts, sk))
 	return

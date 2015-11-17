@@ -2,8 +2,9 @@ package s3
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 
@@ -12,6 +13,9 @@ import (
 )
 
 // http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/endpoints.html
+
+// TODO: parse ErrorResponse
+// TODO: visibility timeout. for now, delete immediately?
 
 const sqsVersion = "2012-11-05"
 
@@ -24,13 +28,64 @@ type SQSQueue struct {
 }
 
 // TODO: CreatQueue
+type Message struct {
+	Body          string
+	ReceiptHandle string
+	MD5OfBody     string
+	MessageId     string
+}
 
+// doesn't create the queue, btw
 func NewQueue(endpoint, region string) *SQSQueue {
 	return &SQSQueue{endpoint: endpoint, region: region}
 }
 
+// returns nil, nil for no available message
+func (sqs *SQSQueue) ReceiveMessage() (*Message, error) {
+	params := url.Values{}
+	params.Add("Action", "ReceiveMessage")
+	// params.Add("MaxNumberOfMessages", "10")	// enable this and change to an array below
+
+	var res struct {
+		ReceiveMessageResult struct {
+			Message *Message // pointer, because not present for empty queue
+		}
+	}
+
+	err := sqs.doAction(&params, &res)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: check MD5 of body? meh
+
+	return res.ReceiveMessageResult.Message, nil
+}
+
 func (sqs *SQSQueue) SendMessage(message string) error {
-	//var u url.URL
+	// TODO: more control
+	// http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/AboutTimestamp.html
+	// e.g. 2007-01-31T23:59:59Z -> "2006-01-02T15:04:05Z"
+	//	expiryDate := time.Now().Add(5 * time.Minute)
+	//	params.Add("Expires", expiryDate.Format("2006-01-02T15:04:05Z"))
+	params := url.Values{}
+	params.Add("Action", "SendMessage")
+	params.Add("MessageBody", message)
+
+	err := sqs.doAction(&params, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (sqs *SQSQueue) DeleteMessage(message *Message) error {
+	params := url.Values{}
+	params.Add("Action", "DeleteMessage")
+	params.Add("ReceiptHandle", message.ReceiptHandle)
+	return sqs.doAction(&params, nil)
+}
+
+func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 	u, err := url.Parse(sqs.endpoint)
 	if err != nil {
 		return err
@@ -38,17 +93,9 @@ func (sqs *SQSQueue) SendMessage(message string) error {
 
 	var req *http.Request
 
-	params := url.Values{}
-	params.Add("Action", "SendMessage")
-	params.Add("MessageBody", message)
 	params.Add("Version", sqsVersion)
 	params.Add("QueueUrl", sqs.endpoint)
 
-	// TODO: more control
-	// http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/AboutTimestamp.html
-	// e.g. 2007-01-31T23:59:59Z -> "2006-01-02T15:04:05Z"
-	//	expiryDate := time.Now().Add(5 * time.Minute)
-	//	params.Add("Expires", expiryDate.Format("2006-01-02T15:04:05Z"))
 	u.RawQuery = params.Encode()
 
 	if false {
@@ -75,15 +122,35 @@ func (sqs *SQSQueue) SendMessage(message string) error {
 
 	sigv4.AuthorizeRequest(req, sqs.accessKeyId, sqs.secretAccessKey, sqs.region, "sqs")
 
-	if true {
-		log.Printf("GUH: %+v", req)
-		c := http.Client{}
-		resp, _ := c.Do(req)
-		b, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("FF %v", string(b))
-	} else {
+	if false {
 		util.LogReqAsCurl(req)
 	}
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		// TODO: parse error response?
+		return errors.New(resp.Status)
+	}
+
+	if out != nil {
+		err = xml.Unmarshal(b, out)
+		if err != nil {
+			return err
+		}
+	}
+
+	// fmt.Printf("%v", string(b))
 	return nil
 }
 
