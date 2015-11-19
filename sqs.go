@@ -85,6 +85,12 @@ func (sqs *SQSQueue) DeleteMessage(message *Message) error {
 	return sqs.doAction(&params, nil)
 }
 
+func (sqs *SQSQueue) GetAttributes() error {
+	params := url.Values{}
+	params.Add("Action", "GetQueueAttributes")
+	return sqs.doAction(&params, nil)
+}
+
 func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 	u, err := url.Parse(sqs.endpoint)
 	if err != nil {
@@ -104,6 +110,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 		if err != nil {
 			return err
 		}
+		// req.Header.Add("x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 	} else {
 		// POST works!
 		u.Path = "" // silly hack to get scheme://host
@@ -122,7 +129,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 
 	sigv4.AuthorizeRequest(req, sqs.accessKeyId, sqs.secretAccessKey, sqs.region, "sqs")
 
-	if false {
+	if true {
 		util.LogReqAsCurl(req)
 	}
 
@@ -138,6 +145,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 		return err
 	}
 
+	// fmt.Printf("%v", string(b))
 	if resp.StatusCode != http.StatusOK {
 		// TODO: parse error response?
 		return errors.New(resp.Status)
@@ -150,7 +158,6 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 		}
 	}
 
-	// fmt.Printf("%v", string(b))
 	return nil
 }
 

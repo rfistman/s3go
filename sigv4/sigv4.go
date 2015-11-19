@@ -171,6 +171,9 @@ func authorizationString(req *http.Request, accessKeyId, secretAccessKey, dateIS
 		return
 	}
 	credential := fmt.Sprintf("%v/%v", accessKeyId, credentialScope)
+	// There is ambiguity about spaces before SignedHeaders and Signature.
+	// Examples here don't have them:
+	// http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html
 	auth = fmt.Sprintf("%v Credential=%v, SignedHeaders=%v, Signature=%v", sigAlgorithm, credential, signedHeaders, sig)
 	return
 }
