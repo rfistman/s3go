@@ -18,11 +18,9 @@ func Test_Sumpin(t *testing.T) {
 
 	s3, _ := NewS3Request("GET", "/", "") // NB: no bucket. what's this test for?
 	s3.Header.Set("Host", "s3.amazonaws.com")
-	s3.AddCredentials(cred)
+	s3.Authenticate(cred)
 
-	req, err := S3ToHttpRequest(s3, nil)
-
-	response, err := http.DefaultClient.Do(req)
+	response, err := http.DefaultClient.Do(s3.Request)
 	if err != nil {
 		t.Error(err)
 		return

@@ -40,7 +40,7 @@ func S3Req(httpVerb, resourceName, bucket string) (*S3Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.AddCredentials(cred)
+	r.Authenticate(cred)
 	return r, nil
 }
 
@@ -104,7 +104,7 @@ func S3UrlGetRequest(s3SchemeUrl string) (*http.Request, error) {
 		return nil, err
 	}
 
-	return S3ToHttpRequest(s3r, nil)
+	return s3r.Request, nil
 }
 
 func UnmarshalFromS3(s3url string, out interface{}) error {

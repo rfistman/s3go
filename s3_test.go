@@ -34,19 +34,25 @@ func Test_IncludedQuery(t *testing.T) {
 	}
 }
 
-func newR(httpVerb, date, resource string) *S3Request {
-	AWSAccessKeyId := "AKIAIOSFODNN7EXAMPLE"
-	AWSSecretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+func creds() *SecurityCredentials {
+	return &SecurityCredentials{
+		AWSAccessKeyId:     "AKIAIOSFODNN7EXAMPLE",
+		AWSSecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+}
 
+func newR(httpVerb, date, resource string) *S3Request {
 	// get request
 	// NB: no bucket. lots of custom hosts in these tests
 	req, _ := NewS3Request(httpVerb, resource, "")
-	req.AWSAccessKeyId = AWSAccessKeyId
-	req.AWSSecretAccessKey = AWSSecretAccessKey
 	req.Header.Set("Date", date) // replace "now"
 	req.Header.Set("Host", "johnsmith.s3.amazonaws.com")
 
 	return req
+}
+
+func authR(s3 *S3Request) {
+	s3.Authenticate(creds())
 }
 
 func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
@@ -55,13 +61,13 @@ func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
 		t.Error(req.Method + "StringToSign mismatch")
 	}
 
-	if e["Signature"] != req.signature() {
+	if e["Signature"] != req.signature(creds().AWSSecretAccessKey) {
 		t.Error("signature mismatch")
 	}
 
 	AuthorizationString := "AWS AKIAIOSFODNN7EXAMPLE:" + e["Signature"]
 
-	if AuthorizationString != req.authorizationString() {
+	if AuthorizationString != req.authorizationString(creds()) {
 		t.Error("authorization string mismatch")
 	}
 }

@@ -14,9 +14,6 @@ import (
 
 type S3Request struct {
 	*http.Request
-
-	AWSAccessKeyId     string
-	AWSSecretAccessKey string
 }
 
 // TODO: factorise (tweet)
@@ -65,12 +62,12 @@ func NewS3Request(httpVerb, resource, bucket string) (*S3Request, error) {
 
 // Signature = Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( stringToSign ) ) );
 // TODO: check if this is UTF8 encoding
-func (req *S3Request) signature() string {
-	return signWithKey(req.stringToSign(), req.AWSSecretAccessKey)
+func (req *S3Request) signature(awsSecretAccessKey string) string {
+	return signWithKey(req.stringToSign(), awsSecretAccessKey)
 }
 
-func (req *S3Request) authorizationString() string {
-	return "AWS" + " " + req.AWSAccessKeyId + ":" + req.signature()
+func (req *S3Request) authorizationString(cred *SecurityCredentials) string {
+	return "AWS" + " " + cred.AWSAccessKeyId + ":" + req.signature(cred.AWSSecretAccessKey)
 }
 
 func (req *S3Request) canonicalizedAmzHeaders() string {
@@ -200,15 +197,5 @@ func (s3 *S3Request) Authenticate(cred *SecurityCredentials) {
 	s3.Header.Set("x-amz-security-token", cred.token)
 
 	// could add it to map, but that would change this
-	s3.Header.Add("Authorization", s3.authorizationString())
-}
-
-func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
-	s3.AWSAccessKeyId = cred.AWSAccessKeyId
-	s3.AWSSecretAccessKey = cred.AWSSecretAccessKey
-	if len(cred.token) > 0 {
-		s3.Header.Set("x-amz-security-token", cred.token)
-	} else {
-		// log.Println("TODO: remove token here")
-	}
+	s3.Header.Add("Authorization", s3.authorizationString(cred))
 }
