@@ -34,13 +34,13 @@ func Test_IncludedQuery(t *testing.T) {
 	}
 }
 
-func newR(httpVerb, date string) *S3Request {
+func newR(httpVerb, date, resource string) *S3Request {
 	AWSAccessKeyId := "AKIAIOSFODNN7EXAMPLE"
 	AWSSecretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 	// get request
 	// NB: no bucket. lots of custom hosts in these tests
-	req, _ := NewS3Request(httpVerb, "/photos/puppy.jpg", "")
+	req, _ := NewS3Request(httpVerb, resource, "")
 	req.AWSAccessKeyId = AWSAccessKeyId
 	req.AWSSecretAccessKey = AWSSecretAccessKey
 	req.Header.Set("Date", date) // replace "now"
@@ -69,7 +69,7 @@ func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
 // do I really have to do camelcase?
 func Test_ObjectGET(t *testing.T) {
 	// Example Object GET
-	req := newR("GET", "Tue, 27 Mar 2007 19:36:42 +0000")
+	req := newR("GET", "Tue, 27 Mar 2007 19:36:42 +0000", "/photos/puppy.jpg")
 
 	m := map[string]string{
 		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg",
@@ -77,13 +77,12 @@ func Test_ObjectGET(t *testing.T) {
 	}
 
 	DoTestRequest(t, req, m)
-
 }
 
 func Test_ObjectPUT(t *testing.T) {
 	// Example Object PUT
 	// NB Content-MD5 omitted
-	req := newR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000")
+	req := newR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000", "/photos/puppy.jpg")
 	req.Header.Set("Content-Type", "image/jpeg")
 
 	m := map[string]string{
@@ -95,8 +94,7 @@ func Test_ObjectPUT(t *testing.T) {
 }
 
 func Test_List(t *testing.T) {
-	req := newR("GET", "Tue, 27 Mar 2007 19:42:41 +0000")
-	req.resource = "/?prefix=photos&max-keys=50&marker=puppy"
+	req := newR("GET", "Tue, 27 Mar 2007 19:42:41 +0000", "/?prefix=photos&max-keys=50&marker=puppy")
 
 	// Example list
 	m := map[string]string{
@@ -108,8 +106,7 @@ func Test_List(t *testing.T) {
 }
 
 func Test_Fetch(t *testing.T) {
-	req := newR("GET", "Tue, 27 Mar 2007 19:44:46 +0000")
-	req.resource = "/?acl"
+	req := newR("GET", "Tue, 27 Mar 2007 19:44:46 +0000", "/?acl")
 
 	m := map[string]string{
 		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:44:46 +0000\n/johnsmith/?acl",
@@ -121,7 +118,7 @@ func Test_Fetch(t *testing.T) {
 
 func Test_Delete(t *testing.T) {
 	// NB example date is wrong in this example. should be 26s not 27s
-	req := newR("DELETE", "Tue, 27 Mar 2007 21:20:26 +0000")
+	req := newR("DELETE", "Tue, 27 Mar 2007 21:20:26 +0000", "/photos/puppy.jpg")
 
 	m := map[string]string{
 		"StringToSign": "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg",
@@ -133,8 +130,7 @@ func Test_Delete(t *testing.T) {
 
 // NB: CNAME style virtual hosted bucket
 func Test_Upload(t *testing.T) {
-	req := newR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000")
-	req.resource = "/db-backup.dat.gz"
+	req := newR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000", "/db-backup.dat.gz")
 	req.Header.Set("Host", "static.johnsmith.net:8080")
 
 	req.Header.Set("x-amz-acl", "public-read")
@@ -160,8 +156,7 @@ func Test_Upload(t *testing.T) {
 }
 
 func Test_ListAllBuckets(t *testing.T) {
-	req := newR("GET", "Wed, 28 Mar 2007 01:29:59 +0000")
-	req.resource = "/"
+	req := newR("GET", "Wed, 28 Mar 2007 01:29:59 +0000", "/")
 	req.Header.Set("Host", "s3.amazonaws.com")
 
 	m := map[string]string{

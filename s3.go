@@ -17,7 +17,6 @@ type S3Request struct {
 
 	AWSAccessKeyId     string
 	AWSSecretAccessKey string
-	resource           string
 }
 
 // TODO: factorise (tweet)
@@ -28,7 +27,7 @@ func B64_encode(b []byte) string {
 }
 
 // TODO: factorise (tweet)
-func SignWithKey(data, key string) string {
+func signWithKey(data, key string) string {
 	// HMAC-SHA1
 	mac := hmac.New(sha1.New, []byte(key))
 	mac.Write([]byte(data))
@@ -38,7 +37,7 @@ func SignWithKey(data, key string) string {
 }
 
 // TODO: factorise (tweet)
-func SortedKeys(m map[string]string) []string {
+func sortedKeys(m map[string]string) []string {
 	sorted_keys := make([]string, len(m))
 	i := 0
 	for k, _ := range m {
@@ -58,9 +57,7 @@ func NewS3Request(httpVerb, resource, bucket string) (*S3Request, error) {
 		return nil, err
 	}
 
-	req := S3Request{Request: r, resource: resource}
-	req.Method = httpVerb
-	//req.Header = make(http.Header) // TODO: REMOVE
+	req := S3Request{Request: r}
 	req.Header.Set("Host", host)
 	req.Header.Set("Date", time.Now().Format(time.RFC1123Z))
 	return &req, nil
@@ -69,7 +66,7 @@ func NewS3Request(httpVerb, resource, bucket string) (*S3Request, error) {
 // Signature = Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( stringToSign ) ) );
 // TODO: check if this is UTF8 encoding
 func (req *S3Request) signature() string {
-	return SignWithKey(req.stringToSign(), req.AWSSecretAccessKey)
+	return signWithKey(req.stringToSign(), req.AWSSecretAccessKey)
 }
 
 func (req *S3Request) authorizationString() string {
@@ -100,7 +97,7 @@ func (req *S3Request) canonicalizedAmzHeaders() string {
 	}
 
 	// 2. sort collection of headers lexographically by header name
-	sorted_keys := SortedKeys(m)
+	sorted_keys := sortedKeys(m)
 
 	// 3. combine same name header fields (already done with AddHeader)
 
@@ -175,18 +172,16 @@ func getIncludedQuery(query string) string {
 }
 
 func (req *S3Request) canonicalizedResource() string {
-	cmps := strings.Split(req.resource, "?")
 	// 1. empty string
 	// 2. virtual hosted bucket vs path style
 	s := hostToResource(req.Header.Get("Host")) +
 		// 3. path part up to but not including query string
-		cmps[0]
+		req.URL.Path
 
 	// 4. included sub-resources
 	// TODO: response header overrides
-	if len(cmps) > 1 {
-		query := cmps[1]
-		included_query := getIncludedQuery(query)
+	if len(req.URL.RawQuery) > 1 {
+		included_query := getIncludedQuery(req.URL.RawQuery)
 		if len(included_query) > 0 {
 			s += "?" + included_query
 		}

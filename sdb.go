@@ -71,7 +71,7 @@ func (r *SDBRequest) canonicalizedQueryString() string {
 	// a. sort
 	// The parameters can come from the GET URI or from the POST body (when Content-Type is application/x-www-form-urlencoded).
 
-	keys := SortedKeys(r.query)
+	keys := sortedKeys(r.query)
 
 	s := ""
 
@@ -94,5 +94,5 @@ func (r *SDBRequest) stringToSign() string {
 }
 
 func (r *SDBRequest) signature() string {
-	return percent_encode(SignWithKey(r.stringToSign(), r.AWSSecretAccessKey))
+	return percent_encode(signWithKey(r.stringToSign(), r.AWSSecretAccessKey))
 }
