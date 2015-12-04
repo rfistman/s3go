@@ -30,8 +30,8 @@ func GetCred() (*SecurityCredentials, error) {
 	return GetEC2Credentials(role)
 }
 
-func S3Req(httpVerb, resourceName, bucket string) (*S3Request, error) {
-	r, err := NewS3Request(httpVerb, resourceName, bucket)
+func S3Req(httpVerb, resourceName, bucket string, body io.Reader) (*http.Request, error) {
+	req, err := NewS3Request(httpVerb, resourceName, bucket, body)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +40,8 @@ func S3Req(httpVerb, resourceName, bucket string) (*S3Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.Authenticate(cred)
-	return r, nil
+	Authenticate(req, cred)
+	return req, nil
 }
 
 // maybe pass fn to make request.
@@ -82,7 +82,7 @@ func B64MD5(b io.Reader) (string, int64) {
 	return B64_encode(hash), written
 }
 
-func S3UrlS3GetReq(s3SchemeUrl string) (*S3Request, error) {
+func S3UrlGetReq(s3SchemeUrl string) (*http.Request, error) {
 	u, err := url.Parse(s3SchemeUrl)
 	if err != nil {
 		return nil, err
@@ -91,24 +91,15 @@ func S3UrlS3GetReq(s3SchemeUrl string) (*S3Request, error) {
 	if u.Scheme != "s3" {
 		return nil, fmt.Errorf("non-s3 scheme: %v", u.Scheme)
 	}
-	s3r, err := S3Req("GET", u.Path, u.Host)
+	req, err := S3Req("GET", u.Path, u.Host, nil)
 	if err != nil {
 		return nil, err
 	}
-	return s3r, nil
+	return req, nil
 }
 
-func S3UrlGetRequest(s3SchemeUrl string) (*http.Request, error) {
-	s3r, err := S3UrlS3GetReq(s3SchemeUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	return s3r.Request, nil
-}
-
-func UnmarshalFromS3(s3url string, out interface{}) error {
-	req, err := S3UrlGetRequest(s3url)
+func UnmarshalFromS3(s3SchemeUrl string, out interface{}) error {
+	req, err := S3UrlGetReq(s3SchemeUrl)
 	if err != nil {
 		return err
 	}

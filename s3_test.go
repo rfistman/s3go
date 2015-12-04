@@ -5,6 +5,7 @@ package s3
 
 import (
 	"log"
+	"net/http"
 	"testing"
 )
 
@@ -41,33 +42,33 @@ func creds() *SecurityCredentials {
 	}
 }
 
-func newR(httpVerb, date, resource string) *S3Request {
+func newR(httpVerb, date, resource string) *http.Request {
 	// get request
 	// NB: no bucket. lots of custom hosts in these tests
-	req, _ := NewS3Request(httpVerb, resource, "")
+	req, _ := NewS3Request(httpVerb, resource, "", nil)
 	req.Header.Set("Date", date) // replace "now"
 	req.Header.Set("Host", "johnsmith.s3.amazonaws.com")
 
 	return req
 }
 
-func authR(s3 *S3Request) {
-	s3.Authenticate(creds())
+func authR(req *http.Request) {
+	Authenticate(req, creds())
 }
 
-func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
-	if e["StringToSign"] != req.stringToSign() {
-		log.Println("BAD: " + req.stringToSign())
+func DoTestRequest(t *testing.T, req *http.Request, e map[string]string) {
+	if e["StringToSign"] != stringToSign(req) {
+		log.Println("BAD: " + stringToSign(req))
 		t.Error(req.Method + "StringToSign mismatch")
 	}
 
-	if e["Signature"] != req.signature(creds().AWSSecretAccessKey) {
+	if e["Signature"] != signature(req, creds().AWSSecretAccessKey) {
 		t.Error("signature mismatch")
 	}
 
 	AuthorizationString := "AWS AKIAIOSFODNN7EXAMPLE:" + e["Signature"]
 
-	if AuthorizationString != req.authorizationString(creds()) {
+	if AuthorizationString != authorizationString(req, creds()) {
 		t.Error("authorization string mismatch")
 	}
 }
