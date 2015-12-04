@@ -31,13 +31,16 @@ func GetCred() (*SecurityCredentials, error) {
 }
 
 func S3Req(httpVerb, resourceName, bucket string) (*S3Request, error) {
-	r := NewS3Request(httpVerb, resourceName)
+	r, err := NewS3Request(httpVerb, resourceName, bucket)
+	if err != nil {
+		return nil, err
+	}
+
 	cred, err := GetCred()
 	if err != nil {
 		return nil, err
 	}
 	r.AddCredentials(cred)
-	(*r.GetArgs())["Host"] = bucket + ".s3.amazonaws.com"
 	return r, nil
 }
 

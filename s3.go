@@ -5,18 +5,18 @@ import (
 	"crypto/sha1"
 	"encoding/base64"
 	"log"
+	"net/http"
 	"net/url"
 	"sort"
-	// "strconv"
 	"strings"
 	"time"
 )
 
 type S3Request struct {
+	*http.Request
+
 	AWSAccessKeyId     string
 	AWSSecretAccessKey string
-	httpVerb           string
-	args               map[string]string
 	resource           string
 }
 
@@ -50,31 +50,34 @@ func SortedKeys(m map[string]string) []string {
 }
 
 // http://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-func NewS3Request(httpVerb, resource string) *S3Request {
-	m := map[string]string{
-		// TODO: move to test code
-		"Content-MD5":  "",
-		"Content-Type": "",
-		// this looks right
-		"Date": time.Now().Format(time.RFC1123Z),
+func NewS3Request(httpVerb, resource, bucket string) (*S3Request, error) {
+	host := bucket + ".s3.amazonaws.com"
+	// TODO:
+	r, err := http.NewRequest(httpVerb, "https://"+host+resource, nil) // TODO: body
+	if err != nil {
+		return nil, err
 	}
 
-	req := S3Request{httpVerb: httpVerb, args: m, resource: resource}
-	return &req
+	req := S3Request{Request: r, resource: resource}
+	req.Method = httpVerb
+	//req.Header = make(http.Header) // TODO: REMOVE
+	req.Header.Set("Host", host)
+	req.Header.Set("Date", time.Now().Format(time.RFC1123Z))
+	return &req, nil
 }
 
-// Signature = Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( StringToSign ) ) );
+// Signature = Base64( HMAC-SHA1( YourSecretAccessKeyID, UTF-8-Encoding-Of( stringToSign ) ) );
 // TODO: check if this is UTF8 encoding
-func (req *S3Request) Signature() string {
-	return SignWithKey(req.StringToSign(), req.AWSSecretAccessKey)
+func (req *S3Request) signature() string {
+	return SignWithKey(req.stringToSign(), req.AWSSecretAccessKey)
 }
 
-func (req *S3Request) AuthorizationString() string {
-	return "AWS" + " " + req.AWSAccessKeyId + ":" + req.Signature()
+func (req *S3Request) authorizationString() string {
+	return "AWS" + " " + req.AWSAccessKeyId + ":" + req.signature()
 }
 
-func (req *S3Request) CanonicalizedAmzHeaders() string {
-	/* oops - this is CanonicalizedResource
+func (req *S3Request) canonicalizedAmzHeaders() string {
+	/* oops - this is canonicalizedResource
 	// 1. start with an empty string
 	s := ""
 
@@ -88,11 +91,11 @@ func (req *S3Request) CanonicalizedAmzHeaders() string {
 
 	// 1. convert each http headername to lower case
 	m := map[string]string{}
-	for k, v := range req.args {
+	for k, vs := range req.Header {
 		//log.Println(strings.ToLower(k) + ":" + v)
 		lower_k := strings.ToLower(k)
 		if strings.HasPrefix(lower_k, "x-amz-") {
-			m[lower_k] = v
+			m[lower_k] = strings.Join(vs, ",")
 		}
 	}
 
@@ -112,16 +115,7 @@ func (req *S3Request) CanonicalizedAmzHeaders() string {
 	return s
 }
 
-// appends duplicate keys
-func (req *S3Request) AddHeader(key, value string) {
-	if prev_val, ok := req.args[key]; ok {
-		// append
-		value = prev_val + "," + value
-	}
-	req.args[key] = value
-}
-
-// rule 2 of "Constructing the CanonicalizedResource Element
+// rule 2 of "Constructing the canonicalizedResource Element
 func hostToResource(host string) string {
 	// path style, I guess
 	if host == "s3.amazonaws.com" {
@@ -180,11 +174,11 @@ func getIncludedQuery(query string) string {
 	return s
 }
 
-func (req *S3Request) CanonicalizedResource() string {
+func (req *S3Request) canonicalizedResource() string {
 	cmps := strings.Split(req.resource, "?")
 	// 1. empty string
 	// 2. virtual hosted bucket vs path style
-	s := hostToResource(req.args["Host"]) +
+	s := hostToResource(req.Header.Get("Host")) +
 		// 3. path part up to but not including query string
 		cmps[0]
 
@@ -200,23 +194,26 @@ func (req *S3Request) CanonicalizedResource() string {
 	return s
 }
 
-func (req *S3Request) StringToSign() string {
-	return req.httpVerb + "\n" + req.args["Content-MD5"] + "\n" + req.args["Content-Type"] + "\n" +
-		req.args["Date"] + "\n" +
-		req.CanonicalizedAmzHeaders() + req.CanonicalizedResource()
+func (req *S3Request) stringToSign() string {
+	h := req.Header
+	return req.Method + "\n" + h.Get("Content-MD5") + "\n" + h.Get("Content-Type") + "\n" +
+		h.Get("Date") + "\n" +
+		req.canonicalizedAmzHeaders() + req.canonicalizedResource()
+}
+
+func (s3 *S3Request) Authenticate(cred *SecurityCredentials) {
+	s3.Header.Set("x-amz-security-token", cred.token)
+
+	// could add it to map, but that would change this
+	s3.Header.Add("Authorization", s3.authorizationString())
 }
 
 func (s3 *S3Request) AddCredentials(cred *SecurityCredentials) {
 	s3.AWSAccessKeyId = cred.AWSAccessKeyId
 	s3.AWSSecretAccessKey = cred.AWSSecretAccessKey
 	if len(cred.token) > 0 {
-		s3.args["x-amz-security-token"] = cred.token
+		s3.Header.Set("x-amz-security-token", cred.token)
 	} else {
 		// log.Println("TODO: remove token here")
 	}
-}
-
-// need this in (external) put code atm
-func (s3 *S3Request) GetArgs() *map[string]string {
-	return &s3.args
 }

@@ -16,8 +16,8 @@ func Test_Sumpin(t *testing.T) {
 		return
 	}
 
-	s3 := NewS3Request("GET", "/")
-	(*s3.GetArgs())["Host"] = "s3.amazonaws.com"
+	s3, _ := NewS3Request("GET", "/", "") // NB: no bucket. what's this test for?
+	s3.Header.Set("Host", "s3.amazonaws.com")
 	s3.AddCredentials(cred)
 
 	req, err := S3ToHttpRequest(s3, nil)

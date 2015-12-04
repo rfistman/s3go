@@ -34,33 +34,34 @@ func Test_IncludedQuery(t *testing.T) {
 	}
 }
 
-func NewR(httpVerb, date string) *S3Request {
+func newR(httpVerb, date string) *S3Request {
 	AWSAccessKeyId := "AKIAIOSFODNN7EXAMPLE"
 	AWSSecretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 	// get request
-	req := NewS3Request(httpVerb, "/photos/puppy.jpg")
+	// NB: no bucket. lots of custom hosts in these tests
+	req, _ := NewS3Request(httpVerb, "/photos/puppy.jpg", "")
 	req.AWSAccessKeyId = AWSAccessKeyId
 	req.AWSSecretAccessKey = AWSSecretAccessKey
-	req.args["Date"] = date
-	req.args["Host"] = "johnsmith.s3.amazonaws.com"
+	req.Header.Set("Date", date) // replace "now"
+	req.Header.Set("Host", "johnsmith.s3.amazonaws.com")
 
 	return req
 }
 
 func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
-	if e["StringToSign"] != req.StringToSign() {
-		log.Println("BAD: " + req.StringToSign())
-		t.Error(req.httpVerb + "StringToSign mismatch")
+	if e["StringToSign"] != req.stringToSign() {
+		log.Println("BAD: " + req.stringToSign())
+		t.Error(req.Method + "StringToSign mismatch")
 	}
 
-	if e["Signature"] != req.Signature() {
+	if e["Signature"] != req.signature() {
 		t.Error("signature mismatch")
 	}
 
 	AuthorizationString := "AWS AKIAIOSFODNN7EXAMPLE:" + e["Signature"]
 
-	if AuthorizationString != req.AuthorizationString() {
+	if AuthorizationString != req.authorizationString() {
 		t.Error("authorization string mismatch")
 	}
 }
@@ -68,7 +69,7 @@ func DoTestRequest(t *testing.T, req *S3Request, e map[string]string) {
 // do I really have to do camelcase?
 func Test_ObjectGET(t *testing.T) {
 	// Example Object GET
-	req := NewR("GET", "Tue, 27 Mar 2007 19:36:42 +0000")
+	req := newR("GET", "Tue, 27 Mar 2007 19:36:42 +0000")
 
 	m := map[string]string{
 		"StringToSign": "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg",
@@ -82,8 +83,8 @@ func Test_ObjectGET(t *testing.T) {
 func Test_ObjectPUT(t *testing.T) {
 	// Example Object PUT
 	// NB Content-MD5 omitted
-	req := NewR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000")
-	req.args["Content-Type"] = "image/jpeg"
+	req := newR("PUT", "Tue, 27 Mar 2007 21:15:45 +0000")
+	req.Header.Set("Content-Type", "image/jpeg")
 
 	m := map[string]string{
 		"StringToSign": "PUT\n\nimage/jpeg\nTue, 27 Mar 2007 21:15:45 +0000\n/johnsmith/photos/puppy.jpg",
@@ -94,7 +95,7 @@ func Test_ObjectPUT(t *testing.T) {
 }
 
 func Test_List(t *testing.T) {
-	req := NewR("GET", "Tue, 27 Mar 2007 19:42:41 +0000")
+	req := newR("GET", "Tue, 27 Mar 2007 19:42:41 +0000")
 	req.resource = "/?prefix=photos&max-keys=50&marker=puppy"
 
 	// Example list
@@ -107,7 +108,7 @@ func Test_List(t *testing.T) {
 }
 
 func Test_Fetch(t *testing.T) {
-	req := NewR("GET", "Tue, 27 Mar 2007 19:44:46 +0000")
+	req := newR("GET", "Tue, 27 Mar 2007 19:44:46 +0000")
 	req.resource = "/?acl"
 
 	m := map[string]string{
@@ -120,7 +121,7 @@ func Test_Fetch(t *testing.T) {
 
 func Test_Delete(t *testing.T) {
 	// NB example date is wrong in this example. should be 26s not 27s
-	req := NewR("DELETE", "Tue, 27 Mar 2007 21:20:26 +0000")
+	req := newR("DELETE", "Tue, 27 Mar 2007 21:20:26 +0000")
 
 	m := map[string]string{
 		"StringToSign": "DELETE\n\n\nTue, 27 Mar 2007 21:20:26 +0000\n/johnsmith/photos/puppy.jpg",
@@ -132,22 +133,23 @@ func Test_Delete(t *testing.T) {
 
 // NB: CNAME style virtual hosted bucket
 func Test_Upload(t *testing.T) {
-	req := NewR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000")
+	req := newR("PUT", "Tue, 27 Mar 2007 21:06:08 +0000")
 	req.resource = "/db-backup.dat.gz"
-	req.args["Host"] = "static.johnsmith.net:8080"
+	req.Header.Set("Host", "static.johnsmith.net:8080")
 
-	req.args["x-amz-acl"] = "public-read"
+	req.Header.Set("x-amz-acl", "public-read")
 	// example request was actually "content-type", but I look for Content-Type. um
-	req.args["Content-Type"] = "application/x-download"
-	req.args["Content-MD5"] = "4gJE4saaMU4BqNR0kLY+lw=="
+	req.Header.Set("Content-Type", "application/x-download")
+	req.Header.Set("Content-MD5", "4gJE4saaMU4BqNR0kLY+lw==")
 	// allow duplicate keys, order is important
-	req.AddHeader("X-Amz-Meta-ReviewedBy", "joe@johnsmith.net")
-	req.AddHeader("X-Amz-Meta-ReviewedBy", "jane@johnsmith.net")
-	req.args["X-Amz-Meta-FileChecksum"] = "0x02661779"
-	req.args["X-Amz-Meta-ChecksumAlgorithm"] = "crc32"
-	req.args["Content-Disposition"] = "attachment; filename=database.dat"
-	req.args["Content-Encoding"] = "gzip"
-	req.args["Content-Length"] = "5913339"
+	req.Header.Add("X-Amz-Meta-ReviewedBy", "joe@johnsmith.net")
+	req.Header.Add("X-Amz-Meta-ReviewedBy", "jane@johnsmith.net")
+
+	req.Header.Set("X-Amz-Meta-FileChecksum", "0x02661779")
+	req.Header.Set("X-Amz-Meta-ChecksumAlgorithm", "crc32")
+	req.Header.Set("Content-Disposition", "attachment; filename=database.dat")
+	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Set("Content-Length", "5913339")
 
 	m := map[string]string{
 		"StringToSign": "PUT\n4gJE4saaMU4BqNR0kLY+lw==\napplication/x-download\nTue, 27 Mar 2007 21:06:08 +0000\nx-amz-acl:public-read\nx-amz-meta-checksumalgorithm:crc32\nx-amz-meta-filechecksum:0x02661779\nx-amz-meta-reviewedby:joe@johnsmith.net,jane@johnsmith.net\n/static.johnsmith.net/db-backup.dat.gz",
@@ -158,9 +160,9 @@ func Test_Upload(t *testing.T) {
 }
 
 func Test_ListAllBuckets(t *testing.T) {
-	req := NewR("GET", "Wed, 28 Mar 2007 01:29:59 +0000")
+	req := newR("GET", "Wed, 28 Mar 2007 01:29:59 +0000")
 	req.resource = "/"
-	req.args["Host"] = "s3.amazonaws.com"
+	req.Header.Set("Host", "s3.amazonaws.com")
 
 	m := map[string]string{
 		"StringToSign": "GET\n\n\nWed, 28 Mar 2007 01:29:59 +0000\n/",
