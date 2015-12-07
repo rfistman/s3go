@@ -30,22 +30,15 @@ func GetCred() (*SecurityCredentials, error) {
 	return GetEC2Credentials(role)
 }
 
-func S3Req(httpVerb, resourceName, bucket string, body io.Reader) (*http.Request, error) {
-	req, err := NewS3Request(httpVerb, resourceName, bucket, body)
-	if err != nil {
-		return nil, err
-	}
-
+// maybe pass fn to make request.
+func DoRequest(req *http.Request) (body []byte, err error) {
+	// CRAPPY
 	cred, err := GetCred()
 	if err != nil {
 		return nil, err
 	}
 	Authenticate(req, cred)
-	return req, nil
-}
 
-// maybe pass fn to make request.
-func DoRequest(req *http.Request) (body []byte, err error) {
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return
@@ -91,7 +84,7 @@ func S3UrlGetReq(s3SchemeUrl string) (*http.Request, error) {
 	if u.Scheme != "s3" {
 		return nil, fmt.Errorf("non-s3 scheme: %v", u.Scheme)
 	}
-	req, err := S3Req("GET", u.Path, u.Host, nil)
+	req, err := NewS3Request("GET", u.Path, u.Host, nil)
 	if err != nil {
 		return nil, err
 	}
