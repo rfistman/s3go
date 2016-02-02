@@ -23,8 +23,7 @@ type SQSQueue struct {
 	endpoint string
 	region   string
 
-	accessKeyId     string
-	secretAccessKey string
+	cred SecurityCredentials
 }
 
 // TODO: CreatQueue
@@ -127,7 +126,12 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 
 	req.Header.Add("Host", u.Host) // REQUIRED!
 
-	sigv4.AuthorizeRequest(req, sqs.accessKeyId, sqs.secretAccessKey, sqs.region, "sqs")
+	if len(sqs.cred.token) > 0 {
+		// needed when using ec2 instance roles
+		req.Header.Add("x-amz-security-token", sqs.cred.token) // ec2 instance roles
+	}
+
+	sigv4.AuthorizeRequest(req, sqs.cred.AWSAccessKeyId, sqs.cred.AWSSecretAccessKey, sqs.region, "sqs")
 
 	if true {
 		util.LogReqAsCurl(req)
@@ -162,6 +166,5 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 }
 
 func (sqs *SQSQueue) AddCredentials(cred *SecurityCredentials) {
-	sqs.accessKeyId = cred.AWSAccessKeyId
-	sqs.secretAccessKey = cred.AWSSecretAccessKey
+	sqs.cred = *cred // copy
 }
