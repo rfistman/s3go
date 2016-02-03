@@ -16,6 +16,7 @@ import (
 
 // TODO: parse ErrorResponse
 // TODO: visibility timeout. for now, delete immediately?
+// TODO: SetAttributes
 
 const sqsVersion = "2012-11-05"
 
@@ -44,6 +45,8 @@ func (sqs *SQSQueue) ReceiveMessage() (*Message, error) {
 	params := url.Values{}
 	params.Add("Action", "ReceiveMessage")
 	// params.Add("MaxNumberOfMessages", "10")	// enable this and change to an array below
+	// long polling, 20s is the maximum I think
+	params.Add("WaitTimeSeconds", "20") // TODO: not here, pass it or SetAttributes
 
 	var res struct {
 		ReceiveMessageResult struct {
