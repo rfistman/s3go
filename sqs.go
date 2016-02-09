@@ -108,6 +108,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 
 	if false {
 		// GET not working. disappointing, would like signed url
+		// in flight mode, but I think this requires all headers to be moved to the url query
 		req, err = http.NewRequest("GET", u.String(), nil)
 		if err != nil {
 			return err
@@ -136,7 +137,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 
 	sigv4.AuthorizeRequest(req, sqs.cred.AWSAccessKeyId, sqs.cred.AWSSecretAccessKey, sqs.region, "sqs")
 
-	if true {
+	if false {
 		util.LogReqAsCurl(req)
 	}
 
