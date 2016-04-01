@@ -71,6 +71,29 @@ func (sqs *SQSQueue) ReceiveMessage() (*Message, error) {
 	return res.ReceiveMessageResult.Message, nil
 }
 
+// returns nil, nil for no available message
+func (sqs *SQSQueue) ReceiveMessages() ([]*Message, error) {
+	params := url.Values{}
+	params.Add("Action", "ReceiveMessage")
+	params.Add("MaxNumberOfMessages", "10") // enable this and change to an array below
+	params.Add("WaitTimeSeconds", "20")     // TODO: not here, pass it or SetAttributes
+	params.Add("AttributeName", "SentTimestamp")
+
+	var res struct {
+		ReceiveMessageResult struct {
+			Message []*Message // pointer, because not present for empty queue
+		}
+	}
+
+	err := sqs.doAction(&params, &res)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: check MD5 of body? meh
+
+	return res.ReceiveMessageResult.Message, nil
+}
+
 func (sqs *SQSQueue) SendMessage(message string) error {
 	// TODO: more control
 	// http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/AboutTimestamp.html
@@ -89,6 +112,12 @@ func (sqs *SQSQueue) SendMessage(message string) error {
 	return nil
 }
 
+type BatchMessage struct {
+	Id          string
+	MessageBody string
+}
+
+// TODO: return the array of errors, ids, etc
 func (sqs *SQSQueue) SendMessageBatch(batch []BatchMessage) error {
 	params := url.Values{}
 	params.Add("Action", "SendMessageBatch")
@@ -107,15 +136,29 @@ func (sqs *SQSQueue) SendMessageBatch(batch []BatchMessage) error {
 	return nil
 }
 
-type BatchMessage struct {
-	Id          string
-	MessageBody string
-}
-
 func (sqs *SQSQueue) DeleteMessage(message *Message) error {
 	params := url.Values{}
 	params.Add("Action", "DeleteMessage")
 	params.Add("ReceiptHandle", message.ReceiptHandle)
+	return sqs.doAction(&params, nil)
+}
+
+type DeleteMessage struct {
+	Id            string
+	ReceiptHandle string
+}
+
+// TODO: check list of errors
+func (sqs *SQSQueue) DeleteMessageBatch(batch []DeleteMessage) error {
+	params := url.Values{}
+	params.Add("Action", "DeleteMessageBatch")
+
+	for i, m := range batch {
+		pref := fmt.Sprintf("DeleteMessageBatchRequestEntry.%v.", i+1)
+		params.Add(pref+"Id", m.Id)
+		params.Add(pref+"ReceiptHandle", m.ReceiptHandle)
+	}
+
 	return sqs.doAction(&params, nil)
 }
 
