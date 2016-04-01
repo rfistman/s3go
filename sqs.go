@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -33,6 +34,11 @@ type Message struct {
 	ReceiptHandle string
 	MD5OfBody     string
 	MessageId     string
+
+	Attribute struct { // TODO: array
+		Name  string
+		Value string
+	}
 }
 
 // doesn't create the queue, btw
@@ -44,9 +50,11 @@ func NewQueue(endpoint, region string) *SQSQueue {
 func (sqs *SQSQueue) ReceiveMessage() (*Message, error) {
 	params := url.Values{}
 	params.Add("Action", "ReceiveMessage")
+	// Default should be 1... but suspecting dropped messages
 	// params.Add("MaxNumberOfMessages", "10")	// enable this and change to an array below
 	// long polling, 20s is the maximum I think
 	params.Add("WaitTimeSeconds", "20") // TODO: not here, pass it or SetAttributes
+	params.Add("AttributeName", "SentTimestamp")
 
 	var res struct {
 		ReceiveMessageResult struct {
@@ -80,6 +88,30 @@ func (sqs *SQSQueue) SendMessage(message string) error {
 
 	return nil
 }
+
+func (sqs *SQSQueue) SendMessageBatch(batch []BatchMessage) error {
+	params := url.Values{}
+	params.Add("Action", "SendMessageBatch")
+
+	for i, m := range batch {
+		pref := fmt.Sprintf("SendMessageBatchRequestEntry.%v.", i+1)
+		params.Add(pref+"Id", m.Id)
+		params.Add(pref+"MessageBody", m.MessageBody)
+	}
+
+	err := sqs.doAction(&params, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type BatchMessage struct {
+	Id          string
+	MessageBody string
+}
+
 func (sqs *SQSQueue) DeleteMessage(message *Message) error {
 	params := url.Values{}
 	params.Add("Action", "DeleteMessage")
