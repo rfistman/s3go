@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"../../util"
+	"../util"
 )
 
 // TODO: use a struct instead of returning 5 item tuples

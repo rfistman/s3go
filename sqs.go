@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"../util"
 	"./sigv4"
 )
 
@@ -213,7 +212,7 @@ func (sqs *SQSQueue) doAction(params *url.Values, out interface{}) error {
 	sigv4.AuthorizeRequest(req, sqs.cred.AWSAccessKeyId, sqs.cred.AWSSecretAccessKey, sqs.region, "sqs")
 
 	if false {
-		util.LogReqAsCurl(req)
+		// util.LogReqAsCurl(req)
 	}
 
 	client := http.Client{}

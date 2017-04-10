@@ -14,12 +14,15 @@ import (
 	"os"
 )
 
-var useEnvCreds = flag.Bool("envCred", false, "use AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY environment variables")
+// should probably default to true
+// needed to make temporary credentials work (like you find on lambda)
+var useEnvCreds = flag.Bool("envCred", false, "use AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN environment variables")
 
 // TODO: reconcile with getCred in awsbn/sdb_play.go
 func GetCred() (*SecurityCredentials, error) {
 	if *useEnvCreds {
-		creds := &SecurityCredentials{AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"), AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY")}
+		// token makes lambda work
+		creds := &SecurityCredentials{AWSAccessKeyId: os.Getenv("AWS_ACCESS_KEY_ID"), AWSSecretAccessKey: os.Getenv("AWS_SECRET_ACCESS_KEY"), token: os.Getenv("AWS_SESSION_TOKEN")}
 		return creds, nil
 	}
 
@@ -62,7 +65,6 @@ func DoRequest(req *http.Request) (body []byte, err error) {
 	return
 }
 
-// TODO: refactor into s3 code from awsbn
 //  openssl dgst -md5 -binary | openssl enc -base64
 func B64MD5(b io.Reader) (string, int64) {
 	h := md5.New()
